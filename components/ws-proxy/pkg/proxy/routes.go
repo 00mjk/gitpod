@@ -191,10 +191,25 @@ type supervisorFrontendBlobserveTransport struct {
 }
 
 func (t *supervisorFrontendBlobserveTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	resp, err = t.RoundTripper.RoundTrip(req)
-	if err != nil {
-		return nil, err
+	for {
+		resp, err = t.RoundTripper.RoundTrip(req)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode == http.StatusServiceUnavailable {
+			respBody, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			if string(respBody) == "timeout" {
+				resp.Body.Close()
+				continue
+			}
+		}
+		break
 	}
+
 	if resp.StatusCode != http.StatusOK {
 		// failed requests should not be redirected
 		return resp, nil
@@ -252,9 +267,23 @@ type ideBlobserveTransport struct {
 }
 
 func (t *ideBlobserveTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	resp, err = t.RoundTripper.RoundTrip(req)
-	if err != nil {
-		return nil, err
+	for {
+		resp, err = t.RoundTripper.RoundTrip(req)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode == http.StatusServiceUnavailable {
+			respBody, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			if string(respBody) == "timeout" {
+				resp.Body.Close()
+				continue
+			}
+		}
+		break
 	}
 
 	if resp.StatusCode != http.StatusOK {
